@@ -20,10 +20,20 @@ using namespace oaknut::util;
 
 template<>
 void EmitIR<IR::Opcode::A64SetCheckBit>(oaknut::CodeGenerator& code, EmitContext& ctx, IR::Inst* inst) {
-    (void)code;
-    (void)ctx;
-    (void)inst;
-    ASSERT_FALSE("Unimplemented");
+    auto args = ctx.reg_alloc.GetArgumentInfo(inst);
+
+    if (args[0].IsImmediate()) {
+        if (args[0].GetImmediateU1()) {
+            code.MOV(Wscratch0, 1);
+            code.STRB(Wscratch0, SP, offsetof(StackLayout, check_bit));
+        } else {
+            code.STRB(WZR, SP, offsetof(StackLayout, check_bit));
+        }
+    } else {
+        auto Wbit = ctx.reg_alloc.ReadW(args[0]);
+        RegAlloc::Realize(Wbit);
+        code.STRB(Wbit, SP, offsetof(StackLayout, check_bit));
+    }
 }
 
 template<>
