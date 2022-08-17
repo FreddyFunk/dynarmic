@@ -122,6 +122,8 @@ IR::Block A32AddressSpace::GenerateIR(IR::LocationDescriptor descriptor) const {
 }
 
 CodePtr A32AddressSpace::Get(IR::LocationDescriptor descriptor) {
+    std::shared_lock lock{address_space_lock};
+
     if (const auto iter = block_entries.find(descriptor.Value()); iter != block_entries.end()) {
         return iter->second;
     }
@@ -134,6 +136,12 @@ CodePtr A32AddressSpace::GetOrEmit(IR::LocationDescriptor descriptor) {
     }
 
     IR::Block ir_block = GenerateIR(descriptor);
+
+    if (GetRemainingSize() < 1024 * 1024) {
+        ClearCache();
+    }
+
+    std::unique_lock lock{address_space_lock};
     const EmittedBlockInfo block_info = Emit(std::move(ir_block));
 
     block_infos.insert_or_assign(descriptor.Value(), block_info);
@@ -142,6 +150,7 @@ CodePtr A32AddressSpace::GetOrEmit(IR::LocationDescriptor descriptor) {
 }
 
 void A32AddressSpace::ClearCache() {
+    std::unique_lock lock{address_space_lock};
     block_entries.clear();
     block_infos.clear();
     code.set_ptr(prelude_info.end_of_prelude);
@@ -149,6 +158,8 @@ void A32AddressSpace::ClearCache() {
 
 void A32AddressSpace::EmitPrelude() {
     using namespace oaknut::util;
+
+    std::unique_lock lock{address_space_lock};
 
     mem.unprotect();
 
@@ -227,10 +238,6 @@ size_t A32AddressSpace::GetRemainingSize() {
 }
 
 EmittedBlockInfo A32AddressSpace::Emit(IR::Block block) {
-    if (GetRemainingSize() < 1024 * 1024) {
-        ClearCache();
-    }
-
     mem.unprotect();
 
     const EmitConfig emit_conf{

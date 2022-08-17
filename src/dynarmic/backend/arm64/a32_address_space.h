@@ -5,6 +5,9 @@
 
 #pragma once
 
+#include <mutex>
+#include <shared_mutex>
+
 #include <mcl/stdint.hpp>
 #include <oaknut/code_block.hpp>
 #include <oaknut/oaknut.hpp>
@@ -48,6 +51,8 @@ private:
 
     tsl::robin_map<u64, CodePtr> block_entries;
     tsl::robin_map<u64, EmittedBlockInfo> block_infos;
+
+    std::shared_mutex address_space_lock{};
 
     struct PreludeInfo {
         u32* end_of_prelude;
